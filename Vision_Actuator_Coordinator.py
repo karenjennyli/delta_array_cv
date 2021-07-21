@@ -13,7 +13,7 @@ import math
 
 import pdb
 
-from Model import NN
+# from Model import NN
 
 
 class Vision_Actuator_Coordinator():
@@ -52,7 +52,7 @@ class Vision_Actuator_Coordinator():
 		x_tc_lst = []
 
 		for i,s_t in enumerate(s_times):
-
+			# SIDE AND TOP CAMERAS AT SAME TIME, SO MAKE SURE THEY'RE THE SAME FRAME
 			#find closest time from t
 			#skip point if there is no corresponding image from top camera within .1 seconds 
 			t_ind = np.argmin(np.abs(t_times-s_t))
@@ -63,7 +63,7 @@ class Vision_Actuator_Coordinator():
 			s_cnts = s_dot_centers[i]
 			t_cnts = t_dot_centers[t_ind]
 
-			s_cnt = np.mean(s_cnts,axis=0)
+			s_cnt = np.mean(s_cnts,axis=0) # CENTER OF DOTS FOR A GIVEN TIME
 			t_cnt = np.mean(t_cnts,axis=0)
 
 
@@ -170,11 +170,11 @@ class Vision_Actuator_Coordinator():
 		return aug_data
 
 
-
-	def run_traj(self,traj,pt_space=.5,plot_x=False,plot_z=False,dbg_side_cam=False,dbg_top_cam=False):
+	# SHOULD THIS BE RUN_RAJ_ACCURATE?
+	def run_traj_accurate(self,traj,pt_space=.5,plot_x=False,plot_z=False,dbg_side_cam=False,dbg_top_cam=False):
 		'''
 		Args:
-			traj: desired heights of actuators
+			traj: desired heights of actuators # NUMPY ARRAY
 
 			pt_space: if a traj of [[0,0,0],[1,0,0]] were given, and pt_space=.5,
 				the trajectory would be converted to [[0,0,0],[.5,0,0],[1,0,0]]
@@ -188,29 +188,35 @@ class Vision_Actuator_Coordinator():
 			dbg_cam: show the frames from a camera with the tracked points and camera center highlighted
 		'''
 
-		side_frames = []
+		side_frames = [] # WHAT ARE ALL OF THESE? I THINK THEY ARE STORING ALL THE FRAMES FROM THE SIDE CAMERA?
 		top_frames = []
-		delta_poses = []
+		delta_poses = [] # WHAT IS DELTA_POSES AND DELTA_TIMES?
 		delta_times = []
 
 		#record some ununsed camera frames to "warm up" the camera
 		#the first few frames are sometimes black when things have just been loaded
 		for i in range(3):
-			self.side_cam.record_frame([])
+			self.side_cam.record_frame([]) # JUST ADDING FRAMES TO AN EMPTY LIST
 			self.top_cam.record_frame([])
 
 
-		traj = self.pt_space(traj,spacing=pt_space) # I THINK THIS IS J ADDING THE SPACINGS?
+		traj = self.pt_space(traj,spacing=pt_space) # ADDING SPACINGS TO TRAJ
 
+		file = open("data/positions.txt","a")
 		for i,pt in enumerate(traj):
 			#you have to implement this for your delta
-			self.delta.goto_pos(pt)  
+			positions =  self.delta.goto_pos(pt)    # SET ``delta_number`` FOR WHICH DELTA TO MOVE (1-4)
+			file.write(f"{i} {str(pt)}\n")
+			file.write(f"{i} {str(positions)}\n\n")
 
 
 			delta_poses.append(pt)
 			delta_times.append(i)
-			self.side_cam.record_frame(side_frames,t=i)
-			self.top_cam.record_frame(top_frames,t=i)
+			self.side_cam.record_frame(side_frames,t=i) # ADDS ``t`` IS INDEX IN TRAJECTORY
+			self.top_cam.record_frame(top_frames,t=i) # ``top_frame`` = [frame, t]
+		
+		file.write("\n")
+		file.close()
 
 		self.side_cam.undistort_frames(side_frames)
 		s_dot_centers,s_times = self.side_cam.process_video(side_frames,dbg=dbg_side_cam)
@@ -220,7 +226,7 @@ class Vision_Actuator_Coordinator():
 
 		cam_traj,cam_times = self.combine_cam_trajects(s_times,s_dot_centers,t_times,t_dot_centers,plot_x=plot_x)
 		
-		datapoints = self.sync_actuator_with_cam(delta_poses,delta_times,cam_traj,cam_times)
+		datapoints = self.sync_actuator_with_cam(delta_poses,delta_times,cam_traj,cam_times) # WHAT IS SYNC_ACTUATOR_WITH_CAM DOING?
 
 		if plot_z: self.compare_z(datapoints)
 
@@ -335,12 +341,15 @@ class Vision_Actuator_Coordinator():
 
 
 def x_test(vac):
-	traj = np.random.rand(8,3)*4
+	# traj = np.random.rand(8,3)*4
+	traj = np.random.rand(5,3)*4 + 1 # I MODIFIED THIS SO IT WOULDN'T BE 0
 	vac.run_traj_accurate(traj,pt_space=.5,plot_x=True)
 
 
-def z_test(vac,pos = [0,0,0],pt_space=.5):
-	traj = np.array([[0,0,0],[0,0,0],[2.5,2.5,2.5],[1.5,1.5,1.5],[2.5,2.5,2.5],[4.5,4.5,4.5],[3.5,3.5,3.5]])
+# def z_test(vac,pos = [0,0,0],pt_space=.5):
+def z_test(vac,pos = [1,1,1],pt_space=.5): # changed default pos = [1,1,1]
+	# traj = np.array([[0,0,0],[0,0,0],[2.5,2.5,2.5],[1.5,1.5,1.5],[2.5,2.5,2.5],[4.5,4.5,4.5],[3.5,3.5,3.5]])
+	traj = np.array([[1,1,1],[1,1,1],[2.5,2.5,2.5],[1.5,1.5,1.5],[2.5,2.5,2.5],[4.5,4.5,4.5],[3.5,3.5,3.5]]) # MODIFIED SO STARTS AT 0
 	traj[1:] += np.array(pos)
 
 	data = vac.run_traj_accurate(traj,pt_space=pt_space,plot_z=False)
@@ -369,23 +378,46 @@ def run_path(vac,traj,pt_space=.5,plot_x=False):
 #make sure to start all trajectories with the actuators at (0,0,0)
 #so that the first camera from starts at the delta origin
 
+file = open("data/datapoints.txt","a")
+
 vac = Vision_Actuator_Coordinator()
 
-x_test(vac) #run a random trajectory to compare x axis measurements from side and top cam
+# traj = np.array([[1,1,1],[2.5,2.5,2.5],[1.5,1.5,1.5],[2.5,2.5,2.5],[5.5,5.5,5.5],[3.5,3.5,3.5]])
+# traj = np.array([[1,1,1],[5.5,5.5,5.5]])
+origin = np.array([[1,1,1]])
+traj = np.random.rand(10,3).round(1)*4 + 1
+traj = np.concatenate((origin, traj))
 
-# run a trajectory that moves all the actuators up and down starting from pos.  
-#(0,0,0) is added for you as the first point
-#Use this to make sure that your z measurements are consistent from different places
-# i.e. no matter where the delta starts from, if all actuators move up 3 cm, 
-#you should measure 3 cm with the cams
-z_test(vac,pos=[1,0,0]) 
+datapoints = run_path(vac, traj, pt_space=0.5, plot_x=True)
 
-#traj = [[0,0,0],[2.5,2.5,2.5],[1.5,1.5,1.5],[2.5,2.5,2.5],[5.5,5.5,5.5],[3.5,3.5,3.5]]
+vac.write_traj(datapoints)
+
+# x_test(vac) #run a random trajectory to compare x axis measurements from side and top cam
+# z_test(vac)
+
+# print(datapoints)
+# file.write(f"{str(datapoints)}\n")
+
+file.close()
+
+print("Finished.")
+
+# # run a trajectory that moves all the actuators up and down starting from pos.  
+# #(0,0,0) is added for you as the first point
+# #Use this to make sure that your z measurements are consistent from different places
+# # i.e. no matter where the delta starts from, if all actuators move up 3 cm, 
+# #you should measure 3 cm with the cams
+# z_test(vac,pos=[1,0,0]) 
+
+# #traj = [[0,0,0],[2.5,2.5,2.5],[1.5,1.5,1.5],[2.5,2.5,2.5],[5.5,5.5,5.5],[3.5,3.5,3.5]]
 
 
-# a somewhat random trajectory
-h_traj = np.array([[2,1,1],[3,0,3],[2,1,0],[0,3,0],[4,0,0],[0,0,3]])
-h_traj = np.concatenate((np.zeros((1,3)),h_traj),axis=0)
+# # a somewhat random trajectory
+# # h_traj = np.array([[2,1,1],[3,0,3],[2,1,0],[0,3,0],[4,0,0],[0,0,3]])
+# # h_traj = np.concatenate((np.zeros((1,3)),h_traj),axis=0)
 
-run_fk_path(vac,h_traj,plot_x=False)
+# # NEW TRAJECTORY
+# h_traj = np.array([[1,1,1],[4,1,4],[3,2,1],[1,4,1],[5,1,1],[1,1,4]])
+# run_path(vac, h_traj, plot_x=False)
 
+# # run_fk_path(vac,h_traj,plot_x=False) # SHOULD THIS JUST BE RUN_PATH?

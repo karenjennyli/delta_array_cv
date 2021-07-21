@@ -22,6 +22,7 @@ class Camera_Reader():
 	def __init__(self,cam,view):
 		self.cap = cv2.VideoCapture(cam)
 		self.recording = False
+		self.view = view
 
 		if view == 0:
 			self.threshA = config.TOP_A 
@@ -33,6 +34,7 @@ class Camera_Reader():
 			self.threshA = config.SIDE_A 
 			self.threshB = config.SIDE_B 
 			self.num_dots = 2
+
 
 			self.dot_dist = config.SIDE_DOT_DIST
 		self.cam_params = C920_Params(view)
@@ -53,7 +55,11 @@ class Camera_Reader():
 
 
 	def record_frame(self,frame_info,t=None):
-		ret,frame = self.cap.read()
+		ret,frame = self.cap.read() # RET IS WHETHER FRAME WAS CAPTURED (true/false)
+		if self.view == 0:
+			print(f"Top: {ret}")
+		else:
+			print(f"Side: {ret}")
 		if t == None:
 			t = time.time()
 		if ret and np.shape(frame) != ():
@@ -71,10 +77,12 @@ class Camera_Reader():
 		return dst
 
 	def undistort_frames(self,frames):
+		print(f"Number of frames: {len(frames)}")
 		imgs,times = list(zip(*frames))
 		dsts = [self.undistort_frame(img) for img in imgs]
 		return list(zip(dsts,times))
 
+	# IS THIS FUNCTION EVEN CALLED?
 	def record_video_and_process(self,duration):
 		#record video for specified duration and return processed position information
 		frame_info = []
@@ -90,10 +98,10 @@ class Camera_Reader():
 
 		self.last_vid_process = (self.process_video(frame_info))
 
-	def process_video(self,frames,dbg=False):
+	def process_video(self,frames,dbg=False): # ``frames`` = [frame, t]
 		#frames is a list of tuples (image,timestamp)
 
-		abs_bound = config.CAM_BOUND
+		abs_bound = config.CAM_BOUND # (0,1080,0,1920) SIZE OF IMAGE
 
 		#in the worst case search the whole image for dots
 		bound = list(abs_bound)
@@ -105,7 +113,6 @@ class Camera_Reader():
 
 			#crop image according to bounds
 			img = frame[0][bound[0]:bound[1],bound[2]:bound[3]]
-
 
 			#convert image to LAB colors
 			img_LAB = cv2.cvtColor(img, cv2.COLOR_BGR2LAB)
@@ -119,8 +126,17 @@ class Camera_Reader():
 			#get the border points around each Delta dot	
 			contours, hierarchy = cv2.findContours(mask, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
 
+
+			# SAVE IMAGES
+			drawn_contours = cv2.drawContours(img, contours, -1, (0,255,0), 3)
+			if self.view == 0:
+				cv2.imwrite(f"frames/frame{frame_idx}_top.jpg", drawn_contours)
+			else:
+				cv2.imwrite(f"frames/frame{frame_idx}_side.jpg", drawn_contours)
+			
+
 			if len(contours) < self.num_dots:
-				#didn't find enough dots in cropped image, so check the whole image
+				#didn't find enough dots in cropped image, so check the whole image # ISN'T THIS JUST CHECKING IT AGAIN?
 
 				bound = copy.copy(abs_bound)
 				img = frame[0][bound[0]:bound[1],bound[2]:bound[3]]
@@ -143,7 +159,8 @@ class Camera_Reader():
 						cv2.destroyAllWindows()
 
 					else:
-						print("Not enought dots in whole image ... Skipping frame")
+						# print("Not enought dots in whole image ... Skipping frame")
+						print(f"Not enought dots in whole image ... Skipping frame {frame_idx} ({self.view})")
 					self.add_skipped_frame(frame)
 					continue		
 
@@ -166,7 +183,8 @@ class Camera_Reader():
 			for c in keep_contours:
 				M = cv2.moments(c)
 				if M['m00'] < self.min_dot_volume:
-					print("Dots too small ... Skipping Frame")
+					# print("Dots too small ... Skipping Frame")
+					print(f"Dots too small ... Skipping Frame {frame_idx} ({self.view})")
 					if dbg:
 						cv2.imshow("image",img[:,:,:])
 						cv2.waitKey(0)
@@ -196,8 +214,7 @@ class Camera_Reader():
 				# 	cy = np.amin(c[center_idxs,:,1]) + lb[0]
 				# else:
 				# 	cy = int(M['m01']/M['m00']) + lb[0]
-				# centers.append((cx,cy))
-
+				centers.append((cx,cy)) # THIS SHOULDN'T BE COMMENTED OUT THOUGH RIGHT?
 
 				bound[0] = min(bound[0],np.min(c[:,:,1],axis=0)[0]+lb[0])
 				bound[1] = max(bound[1],np.max(c[:,:,1],axis=0)[0]+lb[0])
@@ -223,7 +240,7 @@ class Camera_Reader():
 			return None,None
 
 
-		center_poses = np.array(center_poses)
+		center_poses = np.array(center_poses) # STORES [[(x,y), (x,y)], [(x,y), (x,y)]]
 		times = np.array(keep_times)
 
 		#mean of dots in first frame
@@ -273,12 +290,13 @@ class Camera_Reader():
 		self.process_video(frames,dbg=True)
 
 
-def test_cam(cam_num):
+def test_cam(cam_num, view):
 	#runs a camera for a few frames and shows the tracked dots and delta center
-	if cam_num == 0:
-		c1 = Camera_Reader(config.SIDE_CAM,1)
-	else:
-		c1 = Camera_Reader(config.TOP_CAM,0)
+	# if cam_num == 0:
+	# 	c1 = Camera_Reader(config.SIDE_CAM,1)
+	# else:
+	# 	c1 = Camera_Reader(config.TOP_CAM,0)
+	c1 = Camera_Reader(cam_num, view)
 	time.sleep(1)
 	frames = []
 	for i in range(5): c1.record_frame([])
@@ -288,3 +306,5 @@ def test_cam(cam_num):
 	c1.process_video(frames,dbg=True)
 
 
+# test_cam(3, 1)
+# test_cam(2, 0)
