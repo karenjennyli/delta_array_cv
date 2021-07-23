@@ -28,8 +28,10 @@ class Vision_Actuator_Coordinator():
 		self.side_cam_2_delta = config.SIDE_CAM_2_DELTA
 		self.top_cam_2_delta = config.TOP_CAM_2_DELTA
 
+		self.positions = []
 
-	def combine_cam_trajects(self,s_times,s_dot_centers,t_times,t_dot_centers,plot_x=False):
+
+	def combine_cam_trajects(self,s_times,s_dot_centers,t_times,t_dot_centers, skipped_frames, plot_x=False):
 		#combine footage from side camera and top camera to get 3D view of Delta
 
 		'''
@@ -56,7 +58,7 @@ class Vision_Actuator_Coordinator():
 			#find closest time from t
 			#skip point if there is no corresponding image from top camera within .1 seconds 
 			t_ind = np.argmin(np.abs(t_times-s_t))
-			if abs(t_times[t_ind]-s_t) > .1:
+			if abs(t_times[t_ind]-s_t) > .1 or i in skipped_frames:
 				print("Skipping point")
 				continue
 
@@ -72,7 +74,7 @@ class Vision_Actuator_Coordinator():
 			#the dots would appear 2x higher.  This combines the information from the top
 			# and side camera to account for the scaling
 			#It iterates three times because it converges very fast.
-			y = t_cnt[1]
+			y = t_cnt[1] # Y COORDINATE OF TOP CAMERA
 			for i in range(3):
 				side_cam_scale = (self.side_cam_2_delta-y)/self.side_cam_2_delta
 				z = s_cnt[1]*side_cam_scale
@@ -202,12 +204,14 @@ class Vision_Actuator_Coordinator():
 
 		traj = self.pt_space(traj,spacing=pt_space) # ADDING SPACINGS TO TRAJ
 
-		file = open("data/positions.txt","a")
+		# file = open("data/positions.txt","a")
 		for i,pt in enumerate(traj):
+			print(f"Point {i} of {len(traj)}")
 			#you have to implement this for your delta
-			positions =  self.delta.goto_pos(pt)    # SET ``delta_number`` FOR WHICH DELTA TO MOVE (1-4)
-			file.write(f"{i} {str(pt)}\n")
-			file.write(f"{i} {str(positions)}\n\n")
+			position =  self.delta.goto_pos(pt)    # SET ``delta_number`` FOR WHICH DELTA TO MOVE (1-4)
+			self.positions.append((i, pt, position))
+			# file.write(f"{i} {str(pt)}\n")
+			# file.write(f"{i} {str(positions)}\n\n")
 
 
 			delta_poses.append(pt)
@@ -215,16 +219,18 @@ class Vision_Actuator_Coordinator():
 			self.side_cam.record_frame(side_frames,t=i) # ADDS ``t`` IS INDEX IN TRAJECTORY
 			self.top_cam.record_frame(top_frames,t=i) # ``top_frame`` = [frame, t]
 		
-		file.write("\n")
-		file.close()
+		# file.write("\n")
+		# file.close()
 
 		self.side_cam.undistort_frames(side_frames)
-		s_dot_centers,s_times = self.side_cam.process_video(side_frames,dbg=dbg_side_cam)
+		s_dot_centers,s_times, s_skipped_frames_idx = self.side_cam.process_video(side_frames,dbg=dbg_side_cam)
 		self.top_cam.undistort_frames(top_frames)
-		t_dot_centers,t_times = self.top_cam.process_video(top_frames,dbg=dbg_top_cam)
+		t_dot_centers,t_times, t_skipped_frames_idx = self.top_cam.process_video(top_frames,dbg=dbg_top_cam)
 		delta_poses,delta_times = np.array(delta_poses),np.array(delta_times)
 
-		cam_traj,cam_times = self.combine_cam_trajects(s_times,s_dot_centers,t_times,t_dot_centers,plot_x=plot_x)
+		skipped_frames = s_skipped_frames_idx.union(t_skipped_frames_idx)
+
+		cam_traj,cam_times = self.combine_cam_trajects(s_times,s_dot_centers,t_times,t_dot_centers, skipped_frames, plot_x=plot_x)
 		
 		datapoints = self.sync_actuator_with_cam(delta_poses,delta_times,cam_traj,cam_times) # WHAT IS SYNC_ACTUATOR_WITH_CAM DOING?
 
@@ -259,15 +265,18 @@ class Vision_Actuator_Coordinator():
 		plt.show()
 
 	def compare_x(self,s_times,t_times,x_tc,x_sc):
-		plt.figure()
-		plt.plot(s_times-s_times[0],x_sc)
-		plt.plot(t_times-t_times[0],x_tc)
-		axis = plt.gca()
-		axis.set_xlabel("Time (seconds)")
-		axis.set_ylabel("X position (cm)")
-		plt.title("Comparison of Camera Measurements in X direction")
-		axis.legend(["Side Camera","Top Camera"])
-		plt.show()
+		try:
+			plt.figure()
+			plt.plot(s_times-s_times[0],x_sc)
+			plt.plot(t_times-t_times[0],x_tc)
+			axis = plt.gca()
+			axis.set_xlabel("Time (seconds)")
+			axis.set_ylabel("X position (cm)")
+			plt.title("Comparison of Camera Measurements in X direction")
+			axis.legend(["Side Camera","Top Camera"])
+			plt.show()
+		except:
+			pass
 
 	def plot_dot_means(self,times,mean_poses,label1,label2):
 		plt.subplot(2,1,1)
@@ -288,7 +297,7 @@ class Vision_Actuator_Coordinator():
 			next_pt = np.array(pts[i+1])
 			dist = np.max(np.abs(next_pt-pt))
 			num_pts = max(1,int(dist/spacing))
-			result.extend(np.linspace(pt,next_pt,num=num_pts,endpoint=False))
+			result.extend(np.linspace(pt,next_pt,num=num_pts,endpoint=False).round(1))
 		result.append(pts[-1])
 		return result
 
@@ -311,6 +320,13 @@ class Vision_Actuator_Coordinator():
 		for h,p,t in data:
 			file.write(str(t)+":"+str(h[0])+","+str(h[1])+","+
 				str(h[2])+":"+str(p[0])+","+str(p[1])+","+str(p[2])+"\n")
+
+	def write_positions(self,positions,filename="./Measured_Poses/Positions.txt"):
+		#write a desired and potentiometer positions to file
+		file = open(filename,"w+")
+		for (t, pt, p) in self.positions: # time, input, potentiometer reading
+			file.write(str(t)+":"+str(pt[0])+","+str(pt[1])+","+
+				str(pt[2])+":"+str(p[0])+","+str(p[1])+","+str(p[2])+"\n")
 
 	def sample_workspace(self,max_height):
 		# a trajectory that samples the entire workspace
@@ -378,27 +394,105 @@ def run_path(vac,traj,pt_space=.5,plot_x=False):
 #make sure to start all trajectories with the actuators at (0,0,0)
 #so that the first camera from starts at the delta origin
 
-file = open("data/datapoints.txt","a")
+# file = open("data/datapoints.txt","a")
 
 vac = Vision_Actuator_Coordinator()
 
 # traj = np.array([[1,1,1],[2.5,2.5,2.5],[1.5,1.5,1.5],[2.5,2.5,2.5],[5.5,5.5,5.5],[3.5,3.5,3.5]])
-# traj = np.array([[1,1,1],[5.5,5.5,5.5]])
+# traj = np.array([[1,1,1], [1.5,1.5,1.5]])
+
+################################################
 origin = np.array([[1,1,1]])
-traj = np.random.rand(10,3).round(1)*4 + 1
+traj = np.random.rand(75,3).round(1)*4 + 1
 traj = np.concatenate((origin, traj))
 
-datapoints = run_path(vac, traj, pt_space=0.5, plot_x=True)
+traj = np.array([[1. , 1. , 1. ],
+       [3.8, 2.2, 3.8],
+       [3. , 1. , 3. ],
+       [5. , 2.2, 1.4],
+       [4.2, 2.6, 1.8],
+       [2.2, 1.8, 3. ],
+       [2.6, 4.2, 3.8],
+       [3.8, 4.6, 1.8],
+       [2.2, 1.4, 1.8],
+       [4.2, 1.8, 1.4],
+       [1. , 3. , 2.2],
+       [3.4, 1.4, 5. ],
+       [2.2, 4.2, 3.4],
+       [3.4, 1.8, 2.2],
+       [3. , 2.6, 3. ],
+       [4.2, 1.8, 4.2],
+       [2.6, 4.2, 5. ],
+       [1.8, 4.2, 1.4],
+       [3. , 1.8, 1. ],
+       [2.6, 1.8, 3. ],
+       [2.2, 2.2, 2.2],
+       [2.2, 4.6, 1.4],
+       [3.4, 3. , 4.2],
+       [3.8, 3. , 4.2],
+       [1.4, 3.4, 1.8],
+       [3.8, 2.6, 3.8],
+       [5. , 1.4, 4.6],
+       [4.2, 3. , 4.2],
+       [3.8, 3.4, 4.6],
+       [1.4, 3. , 3. ],
+       [3. , 2.2, 3.4],
+       [3.4, 2.6, 4.6],
+       [4.6, 1.4, 1.8],
+       [4.6, 3. , 3.4],
+       [2.6, 5. , 5. ],
+       [1.4, 4.2, 1.4],
+       [2.2, 2.6, 3. ],
+       [3. , 1.4, 4.6],
+       [1. , 3. , 3.8],
+       [1. , 1.8, 4.6],
+       [2.2, 2.6, 3. ],
+       [2.6, 3. , 1.8],
+       [3. , 2.2, 1.8],
+       [4.6, 3. , 1.4],
+       [5. , 3.8, 3.8],
+       [3.4, 3.8, 4.6],
+       [4.2, 1.8, 3. ],
+       [4.6, 3.8, 1.8],
+       [3.4, 3. , 1.4],
+       [3.4, 3.4, 4.6],
+       [1.4, 1.4, 4.6],
+       [4.6, 1.8, 2.2],
+       [2.6, 2.2, 1.4],
+       [2.6, 3. , 1.8],
+       [2.2, 2.6, 4.6],
+       [2.6, 4.2, 4.6],
+       [4.6, 4.6, 2.6],
+       [1.4, 3.4, 1.4],
+       [1.8, 3.4, 1. ],
+       [2.6, 2.6, 1.4],
+       [4.2, 1. , 2.2],
+       [4.6, 4.2, 2.6],
+       [3. , 1.4, 1.8],
+       [2.2, 4.6, 1. ],
+       [3.4, 3.4, 2.6],
+       [2.2, 1.4, 1.4],
+       [2.6, 4.6, 4.2],
+       [5. , 4.2, 2.6],
+       [3.4, 3.4, 4.2],
+       [1.8, 2.6, 4.6],
+       [3. , 1.8, 3.4],
+       [3.8, 4.2, 2.6],
+       [3. , 2.2, 3.4],
+       [2.2, 2.6, 4.6],
+       [3.8, 1. , 1.8],
+       [2.2, 2.6, 3.8]])
+traj = np.concatenate((traj, origin))
 
+
+datapoints = run_path(vac, traj, pt_space=0.5, plot_x=True)
 vac.write_traj(datapoints)
+vac.write_positions(vac.positions)
 
 # x_test(vac) #run a random trajectory to compare x axis measurements from side and top cam
 # z_test(vac)
 
-# print(datapoints)
-# file.write(f"{str(datapoints)}\n")
-
-file.close()
+# file.close()
 
 print("Finished.")
 

@@ -15,5 +15,6 @@ class Control_Delta():
         duration = [1.0]
         self.delta.move_joint_position(np.array([position]), duration)
         self.delta.wait_until_done_moving()
-        return self.delta.get_joint_positions()[9:]
+        positions = [round(100*float(p), 2) for p in self.delta.get_joint_positions()[9:]]
+        return positions
         # print(self.delta.get_joint_positions())

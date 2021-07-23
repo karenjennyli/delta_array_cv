@@ -19,7 +19,7 @@ TOP_CAM_2_DELTA = 22 # 25.7 #cm from top camera to Delta center
 #Webcam number of each camera (depends on where you plugged them in)
 #cv2.VideoCapture(cam_number) will pull up the feed from one of your webcams, you can figure out which
 #one is what number by trial and error.
-TOP_CAM = 1
+TOP_CAM = 0
 SIDE_CAM = 3
 
 #Computer vision usually crops image before processing to avoid processing whole image
@@ -42,6 +42,6 @@ TOP_CAM_MTX = [[1.44592804e+03, 0.00000000e+00, 7.72256602e+02],
 #the two Deltas on mounting have flipped coordinate frames
 #LEFT_DELTA implies the Delta near the camera
 
-INIT_PT = [0,0,4.5398]
+INIT_PT = [0,0,0] # [0,0,4.5398]
 
 

@@ -45,21 +45,23 @@ class Camera_Reader():
 		self.min_dot_volume = config.MIN_VOL
 
 		self.skipped_frames = []
+		self.skipped_frames_idx = set()
 
-	def add_skipped_frame(self,frame):
+	def add_skipped_frame(self,frame, frame_idx=-1):
 		#frames are skipped when things went wrong, so I store them to debug
 		max_num = 100
 		self.skipped_frames.append(frame)
+		self.skipped_frames_idx.add(frame_idx)
 		if len(self.skipped_frames) > max_num:
 			self.skipped_frames = self.skipped_frames[len(self.skipped_frames)-max_num:]
 
 
 	def record_frame(self,frame_info,t=None):
 		ret,frame = self.cap.read() # RET IS WHETHER FRAME WAS CAPTURED (true/false)
-		if self.view == 0:
-			print(f"Top: {ret}")
-		else:
-			print(f"Side: {ret}")
+		# if self.view == 0:
+		# 	print(f"Top: {ret}")
+		# else:
+		# 	print(f"Side: {ret}")
 		if t == None:
 			t = time.time()
 		if ret and np.shape(frame) != ():
@@ -161,7 +163,7 @@ class Camera_Reader():
 					else:
 						# print("Not enought dots in whole image ... Skipping frame")
 						print(f"Not enought dots in whole image ... Skipping frame {frame_idx} ({self.view})")
-					self.add_skipped_frame(frame)
+					self.add_skipped_frame(frame, frame_idx)
 					continue		
 
 			#keep the contours with the most points
@@ -191,7 +193,7 @@ class Camera_Reader():
 						cv2.imshow("image",frame[0])
 						cv2.waitKey(0)
 						cv2.destroyAllWindows()
-					self.add_skipped_frame(frame)
+					self.add_skipped_frame(frame, frame_idx)
 					bound = [bound[1],bound[0],bound[3],bound[2]]
 					skip_frame = True
 					break
@@ -272,7 +274,7 @@ class Camera_Reader():
 				cv2.waitKey(0)
 				cv2.destroyAllWindows()
 
-		return adjusted_centers,times
+		return adjusted_centers,times, self.skipped_frames_idx
 
 	def debug_last_video(self):
 		times = np.zeros(len(self.last_vid))
