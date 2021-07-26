@@ -23,7 +23,7 @@ class NN():
 		self.fk_load_file = fk_load_file
 		self.ik_load_file = ik_load_file
 
-		self.ik_Adam = tf.keras.optimizers.Adam(.0005)
+		self.ik_Adam = tf.keras.optimizers.Adam(.0005) # learning_rate=.0005
 
 		if(load):
 			self.load_all()
@@ -50,6 +50,31 @@ class NN():
 
 		return fk_error,ik_error
 
+	def evaluate_detailed(self, data):
+		#data assumed to be [heights,ee_poses,times]
+		heights,ee_poses,_ = list(zip(*data))
+
+		fk_pred = self.predict(self.fk,heights)
+		ik_pred = self.predict(self.ik,ee_poses)
+		
+		print(" fk pred ")
+		print(fk_pred)
+		print()
+		print(" ik pred ")
+		print(ik_pred)
+		print()
+
+		fk_error = np.mean(np.sqrt(np.sum(np.square(ee_poses-fk_pred),axis=1)))
+		ik_error = np.mean(np.sqrt(np.sum(np.square(heights-ik_pred),axis=1)))
+		# fk_error = ee_poses-fk_pred
+		# ik_error = heighti s-ik_pred
+
+		print(" fk error ",fk_error)
+		print(" ik error ",ik_error)
+
+		print("\n-----------------------\n")
+
+		return fk_error,ik_error
 
 	def train_on_batch(self,heights,ee_poses):
 		#get a random batch from memory and train on it
@@ -69,7 +94,7 @@ class NN():
 		heights = np.array(heights)
 		ee_poses = np.array(ee_poses)
 
-		self.fk.fit(heights,ee_poses,verbose=0)
+		self.fk.fit(heights,ee_poses,verbose=0) # verbose is wheter or not you want to see progress
 
 		with tf.GradientTape(watch_accessed_variables=False) as g:
 			g.watch(self.ik.trainable_weights)
@@ -111,13 +136,13 @@ class NN():
 
 	def create_fk_model(self,input_dim = 3, output_dim = 3):
 		model = Sequential()
-		model.add(Dense(256, input_dim=input_dim, activation='relu'))
-		model.add(Dense(256, activation='relu'))
-		model.add(Dense(256, activation='relu'))
-		model.add(Dense(output_dim, activation='linear'))
+		model.add(Dense(256, input_dim=input_dim, activation='relu')) # input layer (relu makes any negative numbers 0)
+		model.add(Dense(256, activation='relu')) # two hidden layers
+		model.add(Dense(256, activation='relu')) # layer size? / output shape = 256
+		model.add(Dense(output_dim, activation='linear')) # output layer
 
 		model.compile(optimizer=keras.optimizers.Adam(),
-               loss='MSE')
+               loss='MSE') # mean square error
 		return model
 
 
@@ -127,7 +152,7 @@ class NN():
 		model.add(Dense(256, activation='relu'))
 		model.add(Dense(256, activation='relu'))
 		model.add(Dense(output_dim, activation='linear'))
-
+		# why not compile model too?
 		return model
 
 	def save_all(self):
@@ -173,8 +198,8 @@ def read_data_from_file(training_data_path):
 	for line in f.readlines():
 		l = line.strip()
 		d = l.split(":")
-		heights = [float(x) for x in d[0].split(",")]
-		ee_poses = [float(x) for x in d[1].split(",")]
+		heights = [float(x) for x in d[1].split(",")]
+		ee_poses = [float(x) for x in d[2].split(",")]
 		data.append((heights,ee_poses,0))
 	return data
 
@@ -196,6 +221,24 @@ def train_from_file(training_data_path,dbg=False):
 
 	model.save_all()
 
+def predict_from_model(training_data_path,dbg=False):
+	model = NN(ik_save_file="./models/rigid_ik_model",fk_save_file="./models/rigid_fk_model",
+		ik_load_file="./models/rigid_ik_model",fk_load_file="./models/rigid_fk_model",load=True)
+
+	data = read_data_from_file(training_data_path)
+
+	if dbg:
+		print("Read in",len(data),"datapoints")
+
+	model.remember(data)
+
+	model.evaluate(data)
+
+predict_from_model("./Measured_Poses/all_data.txt", dbg=True)
+
+print("Finished.")
+
+# train_from_file("./Measured_Poses/Traj.txt", dbg=True)
 
 '''
 This code is written with online learning in mind, but you can also load in a data file and use
