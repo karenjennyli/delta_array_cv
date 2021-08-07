@@ -378,19 +378,18 @@ def run_path(vac,finger_number,traj,pt_space=.5,plot_x=False):
 	plt.show()
 	return data
 
-def read_traj_from_file(traj_data_path, count):
+def read_traj_from_file(traj_data_path):
 	f = open(traj_data_path)
 	data = []
 	i = 0
 	for line in f.readlines():
-		if i >= count:
-			break
 		l = line.strip()
 		d = l.split(":")
 		heights = [float(x) for x in d[1].split(",")]
 		data.append(heights)
 		i += 1
 	return data
+
 
 
 vac = Vision_Actuator_Coordinator()
@@ -409,6 +408,7 @@ x_test(vac, finger_number) # run a random trajectory to compare x axis measureme
 z_test(vac, finger_number)
 
 
+
 '''
 collect testing data
 '''
@@ -421,7 +421,6 @@ datapoints = run_path(vac, finger_number, traj, pt_space=10, plot_x=True) # ``pt
 vac.write_traj(datapoints, file_name=f"./Measured_Poses/Traj_Testing_Data_{finger_number}.txt") # save datapoints to text file
 # vac.write_positions(vac.positions, file_name=f"./Measured_Poses/Positions_Testing_Data_{finger_number}.txt") # save desired position and potentiometer reading position (not necessary)
 
-# traj = read_traj_from_file("./Measured_Poses/test_data1.txt", 1000) # EXPLAIN THIS
 
 
 '''
@@ -443,6 +442,12 @@ traj = np.concatenate((traj, traj)) # duplicate traj
 
 datapoints = run_path(vac, finger_number, traj, pt_space=10, plot_x=True) # ``pt_space=10`` so no spacing is added
 vac.write_traj(datapoints, file_name=f"./Measured_Poses/Traj_Training_Data_{finger_number}.txt") # save datapoints to text file
+
+
+'''
+if you ever need to rerun a trajectory, run this code
+'''
+traj = read_traj_from_file("./Measured_Poses/test_data1.txt")
 
 print("Finished.")
 
