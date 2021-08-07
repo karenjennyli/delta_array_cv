@@ -447,7 +447,10 @@ vac.write_traj(datapoints, file_name=f"./Measured_Poses/Traj_Training_Data_{fing
 '''
 if you ever need to rerun a trajectory, run this code
 '''
-traj = read_traj_from_file("./Measured_Poses/test_data1.txt")
+traj = read_traj_from_file("./Measured_Poses/Traj_Testing_Data_1.txt")
+datapoints = run_path(vac, finger_number, traj, pt_space=10, plot_x=True) # ``pt_space=10`` so no spacing is added
+vac.write_traj(datapoints, file_name=f"./Measured_Poses/Traj_Training_Data_{finger_number}.txt") # save datapoints to text file
+
 
 print("Finished.")
 
