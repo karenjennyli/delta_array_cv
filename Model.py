@@ -43,8 +43,14 @@ class NN():
 		fk_error = np.mean(np.sqrt(np.sum(np.square(ee_poses-fk_pred),axis=1)))
 		ik_error = np.mean(np.sqrt(np.sum(np.square(heights-ik_pred),axis=1)))
 
+		fk_diff = np.mean(ee_poses-fk_pred)
+		ik_diff = np.mean(heights-ik_pred)
+
 		print(" fk error ",fk_error)
 		print(" ik error ",ik_error)
+
+		print(" fk avg difference", fk_diff)
+		print(" ik avg difference", ik_diff)
 
 		print("\n-----------------------\n")
 
@@ -234,11 +240,34 @@ def predict_from_model(training_data_path,dbg=False):
 
 	model.evaluate(data)
 
-predict_from_model("./Measured_Poses/all_data.txt", dbg=True)
+def compare_repeated_trials(trial1_data_path, trial2_data_path):
+	data1 = read_data_from_file(trial1_data_path)
+	data2 = read_data_from_file(trial2_data_path)
+
+	heights1,ee_poses1,_ = list(zip(*data1))
+	heights2,ee_poses2,_ = list(zip(*data2))
+
+	# print(ee_poses1)
+	# print("-------------------")
+	# print(ee_poses2)
+	mse_error = np.mean(np.sqrt(np.sum(np.square(ee_poses1-np.asarray(ee_poses2)),axis=1)))
+	ee_error = np.mean(ee_poses1-np.asarray(ee_poses2))
+
+	print("avg difference ", ee_error)
+	print("mse ", mse_error)
+	return ee_error
+
+# train_from_file("./Measured_Poses/training_data_1024.txt", dbg=True)
+
+# predict_from_model("./Measured_Poses/all_data.txt", dbg=True) # training data
+# predict_from_model("./Measured_Poses/test_data.txt", dbg=True) # testing data
+# predict_from_model("./prev_data/test_data1_first_model.txt", dbg=True) # testing data
+# predict_from_model("./Measured_Poses/Traj.txt", dbg=True) # testing data
+# compare_repeated_trials("./Measured_Poses/trial1.txt", "./Measured_Poses/trial2.txt")
+
+predict_from_model("./Measured_Poses/Traj.txt", dbg=True) # testing on 3rd finger
 
 print("Finished.")
-
-# train_from_file("./Measured_Poses/Traj.txt", dbg=True)
 
 '''
 This code is written with online learning in mind, but you can also load in a data file and use

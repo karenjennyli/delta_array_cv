@@ -390,6 +390,19 @@ def run_path(vac,traj,pt_space=.5,plot_x=False):
 	plt.show()
 	return data
 
+def read_traj_from_file(traj_data_path, count):
+	f = open(traj_data_path)
+	data = []
+	i = 0
+	for line in f.readlines():
+		if i >= count:
+			break
+		l = line.strip()
+		d = l.split(":")
+		heights = [float(x) for x in d[1].split(",")]
+		data.append(heights)
+		i += 1
+	return data
 
 #make sure to start all trajectories with the actuators at (0,0,0)
 #so that the first camera from starts at the delta origin
@@ -403,89 +416,26 @@ vac = Vision_Actuator_Coordinator()
 
 ################################################
 origin = np.array([[1,1,1]])
-traj = np.random.rand(75,3).round(1)*4 + 1
+traj = np.random.rand(100,3).round(1)*4 + 1
 traj = np.concatenate((origin, traj))
 
-traj = np.array([[1. , 1. , 1. ],
-       [3.8, 2.2, 3.8],
-       [3. , 1. , 3. ],
-       [5. , 2.2, 1.4],
-       [4.2, 2.6, 1.8],
-       [2.2, 1.8, 3. ],
-       [2.6, 4.2, 3.8],
-       [3.8, 4.6, 1.8],
-       [2.2, 1.4, 1.8],
-       [4.2, 1.8, 1.4],
-       [1. , 3. , 2.2],
-       [3.4, 1.4, 5. ],
-       [2.2, 4.2, 3.4],
-       [3.4, 1.8, 2.2],
-       [3. , 2.6, 3. ],
-       [4.2, 1.8, 4.2],
-       [2.6, 4.2, 5. ],
-       [1.8, 4.2, 1.4],
-       [3. , 1.8, 1. ],
-       [2.6, 1.8, 3. ],
-       [2.2, 2.2, 2.2],
-       [2.2, 4.6, 1.4],
-       [3.4, 3. , 4.2],
-       [3.8, 3. , 4.2],
-       [1.4, 3.4, 1.8],
-       [3.8, 2.6, 3.8],
-       [5. , 1.4, 4.6],
-       [4.2, 3. , 4.2],
-       [3.8, 3.4, 4.6],
-       [1.4, 3. , 3. ],
-       [3. , 2.2, 3.4],
-       [3.4, 2.6, 4.6],
-       [4.6, 1.4, 1.8],
-       [4.6, 3. , 3.4],
-       [2.6, 5. , 5. ],
-       [1.4, 4.2, 1.4],
-       [2.2, 2.6, 3. ],
-       [3. , 1.4, 4.6],
-       [1. , 3. , 3.8],
-       [1. , 1.8, 4.6],
-       [2.2, 2.6, 3. ],
-       [2.6, 3. , 1.8],
-       [3. , 2.2, 1.8],
-       [4.6, 3. , 1.4],
-       [5. , 3.8, 3.8],
-       [3.4, 3.8, 4.6],
-       [4.2, 1.8, 3. ],
-       [4.6, 3.8, 1.8],
-       [3.4, 3. , 1.4],
-       [3.4, 3.4, 4.6],
-       [1.4, 1.4, 4.6],
-       [4.6, 1.8, 2.2],
-       [2.6, 2.2, 1.4],
-       [2.6, 3. , 1.8],
-       [2.2, 2.6, 4.6],
-       [2.6, 4.2, 4.6],
-       [4.6, 4.6, 2.6],
-       [1.4, 3.4, 1.4],
-       [1.8, 3.4, 1. ],
-       [2.6, 2.6, 1.4],
-       [4.2, 1. , 2.2],
-       [4.6, 4.2, 2.6],
-       [3. , 1.4, 1.8],
-       [2.2, 4.6, 1. ],
-       [3.4, 3.4, 2.6],
-       [2.2, 1.4, 1.4],
-       [2.6, 4.6, 4.2],
-       [5. , 4.2, 2.6],
-       [3.4, 3.4, 4.2],
-       [1.8, 2.6, 4.6],
-       [3. , 1.8, 3.4],
-       [3.8, 4.2, 2.6],
-       [3. , 2.2, 3.4],
-       [2.2, 2.6, 4.6],
-       [3.8, 1. , 1.8],
-       [2.2, 2.6, 3.8]])
-traj = np.concatenate((traj, origin))
+# traj = read_traj_from_file("./Measured_Poses/test_data1.txt", 1000)
 
+# origin = np.array([[1,1,1]])
+traj = []
 
-datapoints = run_path(vac, traj, pt_space=0.5, plot_x=True)
+for i in range(8):
+	for j in range(8):
+		for k in range(8):
+			first = 1 + i * 0.5
+			second = 1 + j * 0.5
+			third = 1 + k * 0.5
+			traj.append([first, second, third])
+
+traj = np.array(traj)
+traj = np.concatenate((traj, traj))
+
+datapoints = run_path(vac, traj, pt_space=10, plot_x=True)
 vac.write_traj(datapoints)
 vac.write_positions(vac.positions)
 

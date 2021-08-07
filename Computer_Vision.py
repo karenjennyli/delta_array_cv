@@ -58,10 +58,10 @@ class Camera_Reader():
 
 	def record_frame(self,frame_info,t=None):
 		ret,frame = self.cap.read() # RET IS WHETHER FRAME WAS CAPTURED (true/false)
-		# if self.view == 0:
-		# 	print(f"Top: {ret}")
-		# else:
-		# 	print(f"Side: {ret}")
+		if self.view == 0:
+			print(f"Top: {ret}")
+		else:
+			print(f"Side: {ret}")
 		if t == None:
 			t = time.time()
 		if ret and np.shape(frame) != ():
