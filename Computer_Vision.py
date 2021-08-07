@@ -57,7 +57,7 @@ class Camera_Reader():
 
 
 	def record_frame(self,frame_info,t=None):
-		ret,frame = self.cap.read() # RET IS WHETHER FRAME WAS CAPTURED (true/false)
+		ret,frame = self.cap.read() # ret is whether frame was captured (true/false)
 		if self.view == 0:
 			print(f"Top: {ret}")
 		else:
@@ -84,7 +84,6 @@ class Camera_Reader():
 		dsts = [self.undistort_frame(img) for img in imgs]
 		return list(zip(dsts,times))
 
-	# IS THIS FUNCTION EVEN CALLED?
 	def record_video_and_process(self,duration):
 		#record video for specified duration and return processed position information
 		frame_info = []
@@ -103,7 +102,7 @@ class Camera_Reader():
 	def process_video(self,frames,dbg=False): # ``frames`` = [frame, t]
 		#frames is a list of tuples (image,timestamp)
 
-		abs_bound = config.CAM_BOUND # (0,1080,0,1920) SIZE OF IMAGE
+		abs_bound = config.CAM_BOUND # (0,1080,0,1920)
 
 		#in the worst case search the whole image for dots
 		bound = list(abs_bound)
@@ -129,16 +128,16 @@ class Camera_Reader():
 			contours, hierarchy = cv2.findContours(mask, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
 
 
-			# SAVE IMAGES
-			drawn_contours = cv2.drawContours(img, contours, -1, (0,255,0), 3)
-			if self.view == 0:
-				cv2.imwrite(f"frames/frame{frame_idx}_top.jpg", drawn_contours)
-			else:
-				cv2.imwrite(f"frames/frame{frame_idx}_side.jpg", drawn_contours)
+			# save images
+			# drawn_contours = cv2.drawContours(img, contours, -1, (0,255,0), 3)
+			# if self.view == 0:
+			# 	cv2.imwrite(f"frames/frame{frame_idx}_top.jpg", drawn_contours)
+			# else:
+			# 	cv2.imwrite(f"frames/frame{frame_idx}_side.jpg", drawn_contours)
 			
 
 			if len(contours) < self.num_dots:
-				#didn't find enough dots in cropped image, so check the whole image # ISN'T THIS JUST CHECKING IT AGAIN?
+				#didn't find enough dots in cropped image, so check the whole image
 
 				bound = copy.copy(abs_bound)
 				img = frame[0][bound[0]:bound[1],bound[2]:bound[3]]
@@ -161,8 +160,10 @@ class Camera_Reader():
 						cv2.destroyAllWindows()
 
 					else:
-						# print("Not enought dots in whole image ... Skipping frame")
-						print(f"Not enought dots in whole image ... Skipping frame {frame_idx} ({self.view})")
+						if self.view == 0:
+							print(f"Not enought dots in whole image ... Skipping Frame {frame_idx} (top)")
+						else:
+							print(f"Not enought dots in whole image ... Skipping Frame {frame_idx} (side)")
 					self.add_skipped_frame(frame, frame_idx)
 					continue		
 
@@ -185,8 +186,10 @@ class Camera_Reader():
 			for c in keep_contours:
 				M = cv2.moments(c)
 				if M['m00'] < self.min_dot_volume:
-					# print("Dots too small ... Skipping Frame")
-					print(f"Dots too small ... Skipping Frame {frame_idx} ({self.view})")
+					if self.view == 0:
+						print(f"Dots too small ... Skipping Frame {frame_idx} (top)")
+					else:
+						print(f"Dots too small ... Skipping Frame {frame_idx} (side)")
 					if dbg:
 						cv2.imshow("image",img[:,:,:])
 						cv2.waitKey(0)
@@ -216,7 +219,7 @@ class Camera_Reader():
 				# 	cy = np.amin(c[center_idxs,:,1]) + lb[0]
 				# else:
 				# 	cy = int(M['m01']/M['m00']) + lb[0]
-				centers.append((cx,cy)) # THIS SHOULDN'T BE COMMENTED OUT THOUGH RIGHT?
+				centers.append((cx,cy))
 
 				bound[0] = min(bound[0],np.min(c[:,:,1],axis=0)[0]+lb[0])
 				bound[1] = max(bound[1],np.max(c[:,:,1],axis=0)[0]+lb[0])
@@ -242,7 +245,7 @@ class Camera_Reader():
 			return None,None
 
 
-		center_poses = np.array(center_poses) # STORES [[(x,y), (x,y)], [(x,y), (x,y)]]
+		center_poses = np.array(center_poses) # stores [[(x,y), (x,y)], [(x,y), (x,y)]]
 		times = np.array(keep_times)
 
 		#mean of dots in first frame
@@ -306,7 +309,3 @@ def test_cam(cam_num, view):
 		c1.record_frame(frames)
 	frames = c1.undistort_frames(frames)
 	c1.process_video(frames,dbg=True)
-
-
-# test_cam(3, 1)
-# test_cam(2, 0)
