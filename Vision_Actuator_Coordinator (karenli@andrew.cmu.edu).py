@@ -447,12 +447,12 @@ def run_tests(vac, finger_number):
 
 
 vac = Vision_Actuator_Coordinator()
-finger_number = 1 # finger number from 1 to 4
+finger_number = 0 # finger number from 1 to 4
 
 
-# traj = [[0,0,0],[2.5,2.5,2.5],[1.5,1.5,1.5],[2.5,2.5,2.5],[5.5,5.5,5.5],[3.5,3.5,3.5]] # example traj
-# datapoints = run_path(vac, finger_number, traj, pt_space=10, plot_x=True)
-# print(datapoints)
+traj = [[2.5,2.5,2.5],[1.5,1.5,1.5],[2.5,2.5,2.5],[5.5,5.5,5.5],[3.5,3.5,3.5]] # example traj
+datapoints = run_path(vac, finger_number, traj, pt_space=10, plot_x=True)
+print(datapoints)
 
 print("Finished.")
 

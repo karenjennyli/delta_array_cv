@@ -4,7 +4,7 @@ import time
 
 class Control_Delta():
     def __init__(self):
-        self.delta = DeltaArray('/dev/tty.usbmodem141201')
+        self.delta = DeltaArray('/dev/tty.usbmodem144401')
 
     def goto_pos(self, pt, finger_number=1): # finger_number = 4 for actuators 10-12
         # pt: numpy array of 3 values
